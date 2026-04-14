@@ -33,7 +33,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside className="w-[220px] shrink-0 border-r border-border bg-card flex flex-col">
         {/* Logo */}
-        <div className="h-14 flex items-center gap-2.5 px-5 border-b border-border">
+        <Link href="/" className="h-14 flex items-center gap-2.5 px-5 border-b border-border hover:bg-accent transition-colors">
           <div className="w-[26px] h-[26px] bg-foreground rounded-[5px] flex items-center justify-center shrink-0">
             <span className="text-background font-serif italic text-sm leading-none">
               P
@@ -42,7 +42,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <span className="font-serif text-[15px] font-semibold tracking-tight">
             Portfolio
           </span>
-        </div>
+        </Link>
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-1">
