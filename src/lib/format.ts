@@ -15,6 +15,9 @@ export const pct = (n: number | null | undefined): string =>
 export const sign = (n: number | null | undefined): string =>
   n == null ? '—' : (n > 0 ? '+' : '') + f1(n) + '%';
 
+export const signUsd = (n: number | null | undefined): string =>
+  n == null ? '---' : (n > 0 ? '+' : '') + usd(n);
+
 export const compactUsd = (n: number | null | undefined): string => {
   if (n == null) return '—';
   if (Math.abs(n) >= 1_000_000) return '$' + (n / 1_000_000).toFixed(1) + 'M';

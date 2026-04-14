@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, use } from "react";
 import Link from "next/link";
 import { useDraft, usePortfolio, useAssetSearch } from "@/lib/hooks";
-import { usd, pct, sign, f1 } from "@/lib/format";
+import { usd, pct, sign, signUsd, f1 } from "@/lib/format";
 import { CHART_COLORS } from "@/lib/constants";
 import { DonutChart } from "@/components/portfolio/donut-chart";
 import { StatCard } from "@/components/portfolio/stat-card";
@@ -48,6 +48,9 @@ interface Position {
   price: number;
   priceLabel: string;
   value: number;
+  change: number | null;
+  changePercent: number | null;
+  baselinePrice: number | null;
 }
 
 export default function PortfolioWorkspacePage({
@@ -100,8 +103,22 @@ export default function PortfolioWorkspacePage({
   );
 
   const sumTarget = enriched.reduce((s, p) => s + (p.targetPct ?? 0), 0);
-  const cashVal = Math.max(0, baseCapital - totalValue);
+  const cashVal = baseCapital - totalValue;
   const cashPct = baseCapital > 0 ? (cashVal / baseCapital) * 100 : 0;
+  const isOverAllocated = cashVal < 0;
+  const overAmount = isOverAllocated ? Math.abs(cashVal) : 0;
+  const overPct = baseCapital > 0 ? (overAmount / baseCapital) * 100 : 0;
+  const isSevereOver = overPct > 10;
+  const allocatedPct = baseCapital > 0 ? Math.min((totalValue / baseCapital) * 100, 100) : 0;
+  const allocatedPctRaw = baseCapital > 0 ? (totalValue / baseCapital) * 100 : 0;
+
+  // Day change & baseline totals from draft API
+  const totalDayChange: number | null = draft?.totalDayChange ?? null;
+  const totalDayChangePct: number | null = draft?.totalDayChangePct ?? null;
+  const baselineTotal: number | null = draft?.baselineTotal ?? null;
+  const latestVersionNumber: number | null = draft?.latestVersionNumber ?? null;
+  const sinceSaveGain = baselineTotal != null ? totalValue - baselineTotal : null;
+  const sinceSavePct = baselineTotal != null && baselineTotal > 0 ? ((totalValue - baselineTotal) / baselineTotal) * 100 : null;
 
   // Donut segments
   const donutSegs = useMemo(() => {
@@ -114,7 +131,7 @@ export default function PortfolioWorkspacePage({
         val: p.value,
         color: p.color,
       }));
-    if (cashPct > 0.5)
+    if (cashVal > 0 && cashPct > 0.5)
       s.push({
         id: "__cash",
         ticker: "Cash",
@@ -215,6 +232,9 @@ export default function PortfolioWorkspacePage({
       price: quote.price,
       priceLabel: quote.priceLabel,
       value: 0,
+      change: quote.change ?? null,
+      changePercent: quote.changePercent ?? null,
+      baselinePrice: null,
     };
 
     setPositions((prev) => [...prev, newPos]);
@@ -253,8 +273,8 @@ export default function PortfolioWorkspacePage({
     return (
       <div className="p-7">
         <Skeleton className="h-8 w-48 mb-4" />
-        <div className="grid grid-cols-4 gap-3 mb-5">
-          {[1, 2, 3, 4].map((i) => (
+        <div className="grid grid-cols-6 gap-3 mb-5">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
             <Skeleton key={i} className="h-20" />
           ))}
         </div>
@@ -320,12 +340,41 @@ export default function PortfolioWorkspacePage({
       </div>
 
       {/* Summary stats */}
-      <div className="grid grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-6 gap-3 mb-5">
         <StatCard label="Market Value" value={usd(totalValue)} />
         <StatCard
           label="Cash / Unallocated"
           value={usd(cashVal)}
-          sub={`${pct(cashPct)} of account`}
+          sub={isOverAllocated ? "Over-allocated" : `${pct(cashPct)} of account`}
+          color={isOverAllocated ? (isSevereOver ? "var(--warm-red, #B83232)" : "var(--warm-amber, #A8690C)") : undefined}
+        />
+        <StatCard
+          label="Day's Change"
+          value={signUsd(totalDayChange)}
+          sub={totalDayChangePct != null ? sign(totalDayChangePct) : undefined}
+          color={
+            totalDayChange != null && totalDayChange !== 0
+              ? totalDayChange > 0
+                ? "var(--warm-green, #1A7A4A)"
+                : "var(--warm-red, #B83232)"
+              : undefined
+          }
+        />
+        <StatCard
+          label="Since Save"
+          value={sinceSaveGain != null ? signUsd(sinceSaveGain) : "---"}
+          sub={
+            sinceSavePct != null && latestVersionNumber != null
+              ? `${sign(sinceSavePct)} · v${latestVersionNumber}`
+              : "No saved version"
+          }
+          color={
+            sinceSaveGain != null && sinceSaveGain !== 0
+              ? sinceSaveGain > 0
+                ? "var(--warm-green, #1A7A4A)"
+                : "var(--warm-red, #B83232)"
+              : undefined
+          }
         />
         <StatCard
           label="Positions"
@@ -347,6 +396,20 @@ export default function PortfolioWorkspacePage({
         />
       </div>
 
+      {/* Over-allocation warning banner */}
+      {isOverAllocated && (
+        <div
+          className="mb-4 rounded-lg border px-4 py-3 text-sm font-medium"
+          style={{
+            borderColor: isSevereOver ? "var(--warm-red, #B83232)" : "var(--warm-amber, #A8690C)",
+            background: isSevereOver ? "rgba(184,50,50,0.06)" : "rgba(168,105,12,0.06)",
+            color: isSevereOver ? "var(--warm-red, #B83232)" : "var(--warm-amber, #A8690C)",
+          }}
+        >
+          Over-allocated by {usd(overAmount)} ({f1(overPct)}% above {usd(baseCapital)})
+        </div>
+      )}
+
       {/* Two-column: table + chart */}
       <div className="grid grid-cols-[1fr_280px] gap-4 mb-4">
         {/* Positions table */}
@@ -364,6 +427,40 @@ export default function PortfolioWorkspacePage({
             </Button>
           </div>
 
+          {/* Sticky available-cash bar */}
+          {positions.length > 0 && (
+            <div className="sticky top-0 z-10 bg-card border-b border-border px-[18px] py-2.5">
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <div className="h-2 rounded-full bg-accent overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-300"
+                      style={{
+                        width: `${Math.min(allocatedPctRaw, 100)}%`,
+                        background: isOverAllocated
+                          ? "var(--warm-red, #B83232)"
+                          : allocatedPct >= 90
+                            ? "var(--warm-amber, #A8690C)"
+                            : "var(--warm-green, #1A7A4A)",
+                      }}
+                    />
+                  </div>
+                </div>
+                <span className="text-xs tabnum text-muted-foreground whitespace-nowrap">
+                  {usd(Math.max(0, cashVal))} of {usd(baseCapital)}
+                </span>
+                {isOverAllocated && (
+                  <Badge
+                    variant="outline"
+                    className="text-[9px] px-1.5 py-0 border-red-400 text-red-600"
+                  >
+                    OVER
+                  </Badge>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
@@ -372,7 +469,9 @@ export default function PortfolioWorkspacePage({
                     "Ticker",
                     "Shares",
                     "Price",
+                    "Day Chg",
                     "Value",
+                    "Since Save",
                     "Weight",
                     "Target %",
                     "",
@@ -449,8 +548,58 @@ export default function PortfolioWorkspacePage({
                       <td className="px-3.5 py-2.5 text-right tabnum text-[12.5px] text-muted-foreground">
                         {usd(pos.price)}
                       </td>
+                      <td className="px-3.5 py-2.5 text-right tabnum text-[12.5px]">
+                        {pos.change != null ? (
+                          <div
+                            style={{
+                              color:
+                                pos.change > 0
+                                  ? "var(--warm-green, #1A7A4A)"
+                                  : pos.change < 0
+                                    ? "var(--warm-red, #B83232)"
+                                    : undefined,
+                            }}
+                          >
+                            <div>{signUsd(pos.change)}</div>
+                            {pos.changePercent != null && (
+                              <div className="text-[10px] opacity-70">
+                                {sign(pos.changePercent)}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">---</span>
+                        )}
+                      </td>
                       <td className="px-3.5 py-2.5 text-right tabnum text-[12.5px] font-semibold">
                         {usd(pos.value)}
+                      </td>
+                      <td className="px-3.5 py-2.5 text-right tabnum text-[12.5px]">
+                        {pos.baselinePrice != null ? (() => {
+                          const gain = (pos.price - pos.baselinePrice) * pos.shares;
+                          const gainPct = pos.baselinePrice > 0
+                            ? ((pos.price - pos.baselinePrice) / pos.baselinePrice) * 100
+                            : 0;
+                          return (
+                            <div
+                              style={{
+                                color:
+                                  gain > 0
+                                    ? "var(--warm-green, #1A7A4A)"
+                                    : gain < 0
+                                      ? "var(--warm-red, #B83232)"
+                                      : undefined,
+                              }}
+                            >
+                              <div>{signUsd(gain)}</div>
+                              <div className="text-[10px] opacity-70">
+                                {sign(gainPct)}
+                              </div>
+                            </div>
+                          );
+                        })() : (
+                          <span className="text-muted-foreground">---</span>
+                        )}
                       </td>
                       <td
                         className="px-3.5 py-2.5 text-right tabnum text-[12.5px] font-medium"
@@ -497,7 +646,7 @@ export default function PortfolioWorkspacePage({
                 {positions.length === 0 && (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={9}
                       className="px-3.5 py-8 text-center text-sm text-muted-foreground"
                     >
                       No positions yet. Click &quot;Add Position&quot; to get
@@ -516,8 +665,34 @@ export default function PortfolioWorkspacePage({
                 <span className="text-[11px] font-semibold text-muted-foreground mr-auto pr-6">
                   TOTAL
                 </span>
+                <span
+                  className="tabnum text-[12px] w-[80px] text-right"
+                  style={{
+                    color:
+                      totalDayChange != null && totalDayChange !== 0
+                        ? totalDayChange > 0
+                          ? "var(--warm-green, #1A7A4A)"
+                          : "var(--warm-red, #B83232)"
+                        : undefined,
+                  }}
+                >
+                  {signUsd(totalDayChange)}
+                </span>
                 <span className="tabnum text-[13px] font-bold w-[100px] text-right">
                   {usd(totalValue)}
+                </span>
+                <span
+                  className="tabnum text-[12px] w-[80px] text-right"
+                  style={{
+                    color:
+                      sinceSaveGain != null && sinceSaveGain !== 0
+                        ? sinceSaveGain > 0
+                          ? "var(--warm-green, #1A7A4A)"
+                          : "var(--warm-red, #B83232)"
+                        : undefined,
+                  }}
+                >
+                  {sinceSaveGain != null ? signUsd(sinceSaveGain) : "---"}
                 </span>
                 <span className="tabnum text-[12px] text-muted-foreground w-[72px] text-right">
                   100%

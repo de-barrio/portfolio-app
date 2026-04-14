@@ -22,12 +22,27 @@ export async function GET(
     return NextResponse.json({ error: 'Draft not found' }, { status: 404 });
   }
 
+  // Fetch latest saved version for baseline prices
+  const latestVersion = await prisma.portfolioVersion.findFirst({
+    where: { portfolioId: id },
+    orderBy: { versionNumber: 'desc' },
+    include: { positions: { include: { asset: true } } },
+  });
+
+  const baselinePriceMap = new Map<string, number>();
+  if (latestVersion) {
+    for (const vp of latestVersion.positions) {
+      baselinePriceMap.set(vp.asset.symbol, vp.baselinePrice);
+    }
+  }
+
   // Enrich with prices
   const symbols = draft.positions.map((p) => p.asset.symbol);
   const quotes = await getBatchQuotes(symbols);
 
   const enrichedPositions = draft.positions.map((pos) => {
     const quote = quotes.get(pos.asset.symbol);
+    const baselinePrice = baselinePriceMap.get(pos.asset.symbol) ?? null;
     return {
       id: pos.id,
       assetId: pos.assetId,
@@ -40,10 +55,28 @@ export async function GET(
       price: quote?.price ?? 0,
       priceLabel: quote?.priceLabel ?? 'Mock',
       value: pos.shares * (quote?.price ?? 0),
+      change: quote?.change ?? null,
+      changePercent: quote?.changePercent ?? null,
+      baselinePrice,
     };
   });
 
   const totalValue = enrichedPositions.reduce((sum, p) => sum + p.value, 0);
+
+  // Day change totals
+  const totalDayChange = enrichedPositions.reduce(
+    (sum, p) => sum + p.shares * (p.change ?? 0),
+    0
+  );
+  const totalDayChangePct = totalValue > 0 ? (totalDayChange / totalValue) * 100 : 0;
+
+  // Baseline total (from latest saved version)
+  const baselineTotal = latestVersion
+    ? enrichedPositions.reduce(
+        (sum, p) => sum + p.shares * (p.baselinePrice ?? p.price),
+        0
+      )
+    : null;
 
   return NextResponse.json({
     id: draft.id,
@@ -53,6 +86,10 @@ export async function GET(
     updatedAt: draft.updatedAt,
     positions: enrichedPositions,
     totalValue,
+    totalDayChange,
+    totalDayChangePct,
+    baselineTotal,
+    latestVersionNumber: latestVersion?.versionNumber ?? null,
   });
 }
 
