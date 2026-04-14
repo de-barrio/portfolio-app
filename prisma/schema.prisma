@@ -1,0 +1,191 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ─── Portfolios ───────────────────────────────────────────────────────────────
+
+model Portfolio {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  intentTag   String?
+  benchmark   String   @default("SPY")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  draft    PortfolioDraft?
+  versions PortfolioVersion[]
+
+  @@map("portfolios")
+}
+
+// ─── Draft (mutable working copy) ─────────────────────────────────────────────
+
+model PortfolioDraft {
+  id          String   @id @default(uuid())
+  portfolioId String   @unique
+  baseCapital Float    @default(100000)
+  mode        String   @default("shares") // "shares" | "allocation"
+  updatedAt   DateTime @updatedAt
+
+  portfolio Portfolio              @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  positions PortfolioDraftPosition[]
+
+  @@map("portfolio_drafts")
+}
+
+model PortfolioDraftPosition {
+  id        String @id @default(uuid())
+  draftId   String
+  assetId   String
+  shares    Float  @default(0)
+  targetPct Float?
+  sortOrder Int    @default(0)
+
+  draft PortfolioDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  asset Asset          @relation(fields: [assetId], references: [id])
+
+  @@unique([draftId, assetId])
+  @@map("portfolio_draft_positions")
+}
+
+// ─── Versions (immutable snapshots) ───────────────────────────────────────────
+
+model PortfolioVersion {
+  id            String   @id @default(uuid())
+  portfolioId   String
+  versionNumber Int
+  label         String?
+  notes         String?
+  benchmark     String   @default("SPY")
+  baselineValue Float
+  createdAt     DateTime @default(now())
+
+  portfolio Portfolio                  @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  positions PortfolioVersionPosition[]
+
+  @@unique([portfolioId, versionNumber])
+  @@map("portfolio_versions")
+}
+
+model PortfolioVersionPosition {
+  id            String @id @default(uuid())
+  versionId     String
+  assetId       String
+  shares        Float
+  baselinePrice Float
+  targetPct     Float?
+
+  version PortfolioVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  asset   Asset            @relation(fields: [assetId], references: [id])
+
+  @@unique([versionId, assetId])
+  @@map("portfolio_version_positions")
+}
+
+// ─── Assets ───────────────────────────────────────────────────────────────────
+
+model Asset {
+  id       String  @id @default(uuid())
+  symbol   String  @unique
+  name     String?
+  type     String  @default("Stock") // Stock, ETF, Bond, Crypto, Other
+  sector   String?
+  exchange String?
+
+  quotes           AssetQuote[]
+  dailyHistory     AssetDailyHistory[]
+  draftPositions   PortfolioDraftPosition[]
+  versionPositions PortfolioVersionPosition[]
+  watchlistItems   WatchlistItem[]
+  researchNotes    ResearchNote[]
+
+  @@map("assets")
+}
+
+model AssetQuote {
+  id         String   @id @default(uuid())
+  assetId    String
+  price      Float
+  priceLabel String   @default("Mock") // Live, Delayed, EOD NAV, Mock
+  fetchedAt  DateTime @default(now())
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@map("asset_quotes")
+}
+
+model AssetDailyHistory {
+  id      String   @id @default(uuid())
+  assetId String
+  date    DateTime
+  open    Float?
+  high    Float?
+  low     Float?
+  close   Float
+  volume  Int?
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, date])
+  @@map("asset_daily_history")
+}
+
+// ─── Watchlist ────────────────────────────────────────────────────────────────
+
+model WatchlistItem {
+  id        String   @id @default(uuid())
+  assetId   String
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId])
+  @@map("watchlist_items")
+}
+
+// ─── Research ─────────────────────────────────────────────────────────────────
+
+model ResearchNote {
+  id          String   @id @default(uuid())
+  title       String?
+  content     String
+  source      String?  // "manual", "ai-research", "ai-analyze", etc.
+  commandType String?  // which slash command generated it
+  portfolioId String?
+  versionId   String?
+  assetId     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  asset Asset? @relation(fields: [assetId], references: [id])
+
+  @@map("research_notes")
+}
+
+model ResearchRun {
+  id        String   @id @default(uuid())
+  command   String
+  input     String
+  output    String
+  model     String?
+  createdAt DateTime @default(now())
+
+  @@map("research_runs")
+}
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+
+model Setting {
+  key   String @id
+  value String
+
+  @@map("settings")
+}
