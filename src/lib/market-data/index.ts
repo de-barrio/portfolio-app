@@ -1,5 +1,6 @@
 import type { MarketDataProvider, Quote } from './types';
 import { MockMarketDataProvider } from './mock-provider';
+import { YahooFinanceProvider } from './yahoo-provider';
 
 export type { Quote, DailyBar, AssetSearchResult, PriceLabel, MarketDataProvider } from './types';
 
@@ -8,8 +9,10 @@ const quoteCache = new Map<string, { quote: Quote; expiresAt: number }>();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 function getProvider(): MarketDataProvider {
-  // Future: check for Yahoo Finance API key and return YahooProvider
-  return new MockMarketDataProvider();
+  if (process.env.MARKET_DATA_PROVIDER === 'mock') {
+    return new MockMarketDataProvider();
+  }
+  return new YahooFinanceProvider();
 }
 
 const provider = getProvider();
