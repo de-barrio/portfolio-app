@@ -63,6 +63,20 @@
 - `compactUsd()` extended with billion (`$X.XB`) and trillion (`$X.XT`) tiers
 - Chevron indicator rotates on expand; note input and delete button don't trigger row toggle (`stopPropagation`)
 
+### PR #7: Research Page — Streaming, Markdown Rendering & Save-to-Notes
+**Files:** `src/app/api/notes/route.ts`, `src/app/api/research/route.ts`, `src/app/research/page.tsx`, `src/components/markdown-renderer.tsx`, `src/app/globals.css`
+
+- Fixed notes DELETE bug: added `DELETE` handler to `/api/notes` route (reads `id` from query params)
+- Research API converted from blocking `messages.create()` to streaming `messages.stream()` with SSE events (`delta`, `done`, `error`)
+- Mock mode (no API key) simulates streaming by chunking text with delays
+- Added `react-markdown` dependency and `<MarkdownRenderer>` wrapper component
+- Scoped `.research-output` CSS styles for headings (serif font), lists, code blocks, tables, blockquotes, links
+- Research page consumes SSE stream via `ReadableStream` reader with `requestAnimationFrame`-batched state updates
+- Blinking cursor indicator (`.streaming-cursor`) shown during streaming
+- Output card appears immediately during streaming (replaces skeleton-only state)
+- "Save to Notes" button in output card header — POSTs to `/api/notes` with title, content, `source: "ai-research"`, and `commandType`
+- History items render through `<MarkdownRenderer>` when clicked
+
 ## Edge Cases Handled
 - No saved version → "Since Save" shows "---" / "No saved version"
 - Position added after last save → baseline is null, shows "---"
@@ -72,3 +86,5 @@
 - Null key stats (marketCap etc.) → em-dash via format helpers
 - ETF/non-stock → chart + stats shown (no earnings-specific data)
 - Chart with no history data → "No price history available" message
+- Research with no API key → mock streaming still works
+- SSE stream error mid-flight → error event parsed, toast shown, streaming state cleaned up
