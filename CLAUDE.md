@@ -50,8 +50,25 @@
 - Switching modes resets all selections
 - Page title/subtitle updates dynamically based on active mode
 
+### Watchlist: Expandable Rows with Price Chart & Key Stats
+**Files:** `src/app/watchlist/page.tsx`, `src/app/api/watchlist/route.ts`, `src/lib/market-data/types.ts`, `src/lib/market-data/yahoo-provider.ts`, `src/lib/market-data/mock-provider.ts`, `src/lib/format.ts`
+
+- Clicking a watchlist row expands it to show a detail panel (accordion — one row at a time)
+- SVG price chart with interactive crosshair: hover/drag to see date + price at any point
+- Time range tabs: 1M, 6M, YTD, 1Y, 5Y — chart data fetched lazily via `/api/assets/[symbol]/history`
+- Key stats grid below chart: Mkt Cap, P/E Ratio, Dividend Yield, 52-wk High, 52-wk Low
+- Extended `Quote` interface with `marketCap`, `trailingPE`, `dividendYield`, `fiftyTwoWeekHigh`, `fiftyTwoWeekLow`
+- Yahoo provider maps new fields from `quote()` response; mock provider generates synthetic values
+- Watchlist API enrichment passes key stats through to the client
+- `compactUsd()` extended with billion (`$X.XB`) and trillion (`$X.XT`) tiers
+- Chevron indicator rotates on expand; note input and delete button don't trigger row toggle (`stopPropagation`)
+
 ## Edge Cases Handled
 - No saved version → "Since Save" shows "---" / "No saved version"
 - Position added after last save → baseline is null, shows "---"
 - Market closed (change = 0) → neutral color
 - Empty portfolio → empty state spans all 9 columns
+- Empty watchlist → empty state with "Add Asset" CTA
+- Null key stats (marketCap etc.) → em-dash via format helpers
+- ETF/non-stock → chart + stats shown (no earnings-specific data)
+- Chart with no history data → "No price history available" message
