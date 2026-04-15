@@ -183,6 +183,142 @@
   animation: fade-in 0.18s ease-out;
 }
 
+/* Research output markdown styles */
+.research-output {
+  font-size: 0.875rem;
+  line-height: 1.7;
+  color: var(--foreground);
+}
+
+.research-output h1,
+.research-output h2,
+.research-output h3,
+.research-output h4 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  margin-top: 1.25em;
+  margin-bottom: 0.5em;
+  line-height: 1.3;
+}
+
+.research-output h1 { font-size: 1.25rem; }
+.research-output h2 { font-size: 1.1rem; }
+.research-output h3 { font-size: 1rem; }
+.research-output h4 { font-size: 0.875rem; }
+
+.research-output h1:first-child,
+.research-output h2:first-child,
+.research-output h3:first-child {
+  margin-top: 0;
+}
+
+.research-output p {
+  margin-bottom: 0.75em;
+}
+
+.research-output p:last-child {
+  margin-bottom: 0;
+}
+
+.research-output ul,
+.research-output ol {
+  margin-bottom: 0.75em;
+  padding-left: 1.5em;
+}
+
+.research-output ul { list-style-type: disc; }
+.research-output ol { list-style-type: decimal; }
+
+.research-output li {
+  margin-bottom: 0.25em;
+}
+
+.research-output li > ul,
+.research-output li > ol {
+  margin-top: 0.25em;
+  margin-bottom: 0;
+}
+
+.research-output strong {
+  font-weight: 600;
+}
+
+.research-output code {
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0.15em 0.35em;
+}
+
+.research-output pre {
+  margin-bottom: 0.75em;
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75em 1em;
+  overflow-x: auto;
+}
+
+.research-output pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.8em;
+}
+
+.research-output blockquote {
+  margin-bottom: 0.75em;
+  padding-left: 1em;
+  border-left: 3px solid var(--border);
+  color: var(--muted-foreground);
+}
+
+.research-output table {
+  width: 100%;
+  margin-bottom: 0.75em;
+  border-collapse: collapse;
+  font-size: 0.85em;
+}
+
+.research-output th,
+.research-output td {
+  border: 1px solid var(--border);
+  padding: 0.4em 0.75em;
+  text-align: left;
+}
+
+.research-output th {
+  background: var(--muted);
+  font-weight: 600;
+}
+
+.research-output hr {
+  margin: 1em 0;
+  border: none;
+  border-top: 1px solid var(--border);
+}
+
+.research-output a {
+  color: var(--ring);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Streaming cursor */
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.streaming-cursor::after {
+  content: "\25AE";
+  animation: blink-cursor 0.8s step-end infinite;
+  margin-left: 1px;
+  color: var(--muted-foreground);
+}
+
 /* Number input spinners */
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button {
