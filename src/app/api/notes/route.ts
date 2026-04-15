@@ -49,3 +49,15 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json(note, { status: 201 });
 }
+
+export async function DELETE(request: NextRequest) {
+  const id = request.nextUrl.searchParams.get('id');
+
+  if (!id) {
+    return NextResponse.json({ error: 'id is required' }, { status: 400 });
+  }
+
+  await prisma.researchNote.delete({ where: { id } });
+
+  return NextResponse.json({ success: true });
+}
