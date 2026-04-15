@@ -88,3 +88,25 @@
 - Chart with no history data → "No price history available" message
 - Research with no API key → mock streaming still works
 - SSE stream error mid-flight → error event parsed, toast shown, streaming state cleaned up
+
+## Current Status (April 15, 2026)
+
+### What's done
+All merged to `master`, build passes clean, manually tested via curl against dev server.
+
+| Page | Status | Notes |
+|------|--------|-------|
+| Portfolios | Complete | Draft editing, version snapshots, performance tracking, allocation warnings |
+| Compare | Complete | Version-vs-version and portfolio-vs-portfolio modes |
+| Watchlist | Complete | Expandable rows, interactive price chart, key stats |
+| Research | Complete | Streaming SSE, markdown rendering, save-to-notes, mock mode |
+| Notes | Complete | CRUD working (DELETE bug fixed in PR #7) |
+| Settings | Exists | Not detailed in session context |
+
+### Known rough edges / potential follow-ups
+- **No ANTHROPIC_API_KEY set** — research runs in mock mode; real streaming untested in this session (SSE plumbing is in place, needs key to verify end-to-end)
+- **Notes page UI** — DELETE handler is fixed but the notes page itself hasn't been reviewed for other UX gaps
+- **Research: no abort/cancel** — if user navigates away mid-stream, the SSE connection isn't explicitly aborted (browser will close it, but no `AbortController` wired up)
+- **Research: no error retry** — a failed stream just shows a toast; no retry button
+- **Markdown renderer is minimal** — no syntax highlighting for code blocks (could add `rehype-highlight` later), no GFM plugin (tables work via `react-markdown` defaults but footnotes/autolinks don't)
+- **No tests** — no unit or integration tests exist for any page/API route
