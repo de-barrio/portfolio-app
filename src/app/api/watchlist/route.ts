@@ -23,6 +23,11 @@ export async function GET() {
       priceLabel: quote?.priceLabel ?? 'Mock',
       change: quote?.change ?? 0,
       changePercent: quote?.changePercent ?? 0,
+      marketCap: quote?.marketCap ?? null,
+      trailingPE: quote?.trailingPE ?? null,
+      dividendYield: quote?.dividendYield ?? null,
+      fiftyTwoWeekHigh: quote?.fiftyTwoWeekHigh ?? null,
+      fiftyTwoWeekLow: quote?.fiftyTwoWeekLow ?? null,
       note: item.note,
       createdAt: item.createdAt,
     };

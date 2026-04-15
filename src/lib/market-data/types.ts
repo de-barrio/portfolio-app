@@ -8,6 +8,11 @@ export interface Quote {
   changePercent?: number;
   name?: string;
   type?: string;
+  marketCap?: number;
+  trailingPE?: number;
+  dividendYield?: number;
+  fiftyTwoWeekHigh?: number;
+  fiftyTwoWeekLow?: number;
   fetchedAt: Date;
 }
 
