@@ -90,14 +90,20 @@ export class MockMarketDataProvider implements MarketDataProvider {
     if (!base) return null;
     const info = ASSET_INFO[upper];
 
+    const price = jitter(base);
     return {
       symbol: upper,
-      price: jitter(base),
+      price,
       priceLabel: 'Mock',
       change: +(Math.random() * 4 - 2).toFixed(2),
       changePercent: +((Math.random() * 2 - 1)).toFixed(2),
       name: info?.name ?? upper,
       type: info?.type ?? 'Stock',
+      marketCap: Math.round(price * (500_000_000 + Math.random() * 2_000_000_000)),
+      trailingPE: +(15 + Math.random() * 35).toFixed(2),
+      dividendYield: info?.type === 'ETF' ? +(Math.random() * 2).toFixed(2) : +(Math.random() * 3).toFixed(2),
+      fiftyTwoWeekHigh: +(price * (1.1 + Math.random() * 0.2)).toFixed(2),
+      fiftyTwoWeekLow: +(price * (0.6 + Math.random() * 0.2)).toFixed(2),
       fetchedAt: new Date(),
     };
   }
@@ -128,4 +134,5 @@ export class MockMarketDataProvider implements MarketDataProvider {
       }))
       .slice(0, 10);
   }
+
 }

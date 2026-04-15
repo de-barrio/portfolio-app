@@ -20,6 +20,8 @@ export const signUsd = (n: number | null | undefined): string =>
 
 export const compactUsd = (n: number | null | undefined): string => {
   if (n == null) return '—';
+  if (Math.abs(n) >= 1_000_000_000_000) return '$' + (n / 1_000_000_000_000).toFixed(1) + 'T';
+  if (Math.abs(n) >= 1_000_000_000) return '$' + (n / 1_000_000_000).toFixed(1) + 'B';
   if (Math.abs(n) >= 1_000_000) return '$' + (n / 1_000_000).toFixed(1) + 'M';
   if (Math.abs(n) >= 1_000) return '$' + (n / 1_000).toFixed(1) + 'K';
   return usd(n);

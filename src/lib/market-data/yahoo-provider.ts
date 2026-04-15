@@ -42,6 +42,11 @@ function yfQuoteToQuote(q: YFQuote, fallbackSymbol?: string): Quote | null {
     changePercent: q.regularMarketChangePercent ?? undefined,
     name: q.longName ?? q.shortName ?? fallbackSymbol ?? q.symbol,
     type: mapQuoteType(q.quoteType),
+    marketCap: (q as Record<string, unknown>).marketCap as number | undefined,
+    trailingPE: (q as Record<string, unknown>).trailingPE as number | undefined,
+    dividendYield: (q as Record<string, unknown>).dividendYield as number | undefined,
+    fiftyTwoWeekHigh: (q as Record<string, unknown>).fiftyTwoWeekHigh as number | undefined,
+    fiftyTwoWeekLow: (q as Record<string, unknown>).fiftyTwoWeekLow as number | undefined,
     fetchedAt: new Date(),
   };
 }
@@ -123,4 +128,5 @@ export class YahooFinanceProvider implements MarketDataProvider {
       return [];
     }
   }
+
 }
