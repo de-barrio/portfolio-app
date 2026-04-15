@@ -36,6 +36,20 @@
 
 - Sidebar "P" logo wrapped in `<Link href="/">` for homepage navigation
 
+### Compare Page: Fix Display Names + Portfolio vs Portfolio Mode
+**File:** `src/app/compare/page.tsx`
+
+- Fixed select dropdowns showing raw UUIDs — now resolve human-readable names via lookup helpers (`resolvePortfolioName`, `resolveVersionName`)
+- Replaced `<SelectValue>` with custom `<span>` renders in all `<SelectTrigger>` elements
+- Added Versions/Portfolios mode toggle using `<Tabs>` component
+- **Versions mode** (existing): pick one portfolio, two versions to compare
+- **Portfolios mode** (new): pick two portfolios, compare live draft data side by side
+- Portfolios mode fetches from `/api/portfolios/[id]/draft` and shows market value, base capital, day's change, positions count
+- Holdings diff reused across both modes via shared `HoldingsDiff` component
+- Extracted sub-components: `VersionStatsCard`, `DraftStatsCard`, `StatRow`, `HoldingsDiff`, `EmptyState`
+- Switching modes resets all selections
+- Page title/subtitle updates dynamically based on active mode
+
 ## Edge Cases Handled
 - No saved version → "Since Save" shows "---" / "No saved version"
 - Position added after last save → baseline is null, shows "---"
