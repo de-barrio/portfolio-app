@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useRef } from "react";
 import useSWR from "swr";
 import { usd, sign, compactUsd, f2, pct } from "@/lib/format";
 import { useAssetSearch } from "@/lib/hooks";
@@ -81,29 +81,16 @@ function rangeToFrom(key: RangeKey): string {
   }
 }
 
-// ── SVG Chart ──────────────────────────────────────────────────
+// ── SVG Chart with interactive crosshair ───────────────────────
 
-function MiniChart({
-  data,
-  sliderStart,
-  sliderEnd,
-}: {
-  data: DailyBar[];
-  sliderStart: number;
-  sliderEnd: number;
-}) {
+function MiniChart({ data }: { data: DailyBar[] }) {
   const W = 600;
   const H = 160;
   const PAD = { top: 12, right: 12, bottom: 24, left: 50 };
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
-  const sliced = useMemo(() => {
-    if (!data.length) return [];
-    const startIdx = Math.floor((data.length - 1) * sliderStart);
-    const endIdx = Math.ceil((data.length - 1) * sliderEnd);
-    return data.slice(startIdx, endIdx + 1);
-  }, [data, sliderStart, sliderEnd]);
-
-  if (!sliced.length) {
+  if (!data.length) {
     return (
       <div className="h-[180px] flex items-center justify-center text-sm text-muted-foreground">
         No price history available
@@ -111,7 +98,7 @@ function MiniChart({
     );
   }
 
-  const prices = sliced.map((d) => d.close);
+  const prices = data.map((d) => d.close);
   const min = Math.min(...prices);
   const max = Math.max(...prices);
   const range = max - min || 1;
@@ -119,15 +106,15 @@ function MiniChart({
   const innerW = W - PAD.left - PAD.right;
   const innerH = H - PAD.top - PAD.bottom;
 
-  const points = sliced
+  const points = data
     .map((d, i) => {
-      const x = PAD.left + (i / (sliced.length - 1 || 1)) * innerW;
+      const x = PAD.left + (i / (data.length - 1 || 1)) * innerW;
       const y = PAD.top + innerH - ((d.close - min) / range) * innerH;
       return `${x},${y}`;
     })
     .join(" ");
 
-  const isPositive = sliced[sliced.length - 1].close >= sliced[0].close;
+  const isPositive = data[data.length - 1].close >= data[0].close;
   const color = isPositive
     ? "var(--warm-green, #1A7A4A)"
     : "var(--warm-red, #B83232)";
@@ -141,16 +128,56 @@ function MiniChart({
 
   // X-axis labels (first, mid, last)
   const xLabels = [
-    { label: sliced[0].date.slice(5), x: PAD.left },
+    { label: data[0].date.slice(5), x: PAD.left },
     {
-      label: sliced[Math.floor(sliced.length / 2)]?.date.slice(5) ?? "",
+      label: data[Math.floor(data.length / 2)]?.date.slice(5) ?? "",
       x: PAD.left + innerW / 2,
     },
-    { label: sliced[sliced.length - 1].date.slice(5), x: PAD.left + innerW },
+    { label: data[data.length - 1].date.slice(5), x: PAD.left + innerW },
   ];
 
+  // Convert mouse/touch position to data index
+  function posToIdx(clientX: number): number | null {
+    const svg = svgRef.current;
+    if (!svg) return null;
+    const rect = svg.getBoundingClientRect();
+    const svgX = ((clientX - rect.left) / rect.width) * W;
+    const ratio = (svgX - PAD.left) / innerW;
+    if (ratio < 0 || ratio > 1) return null;
+    return Math.round(ratio * (data.length - 1));
+  }
+
+  function handleMove(e: React.MouseEvent | React.TouchEvent) {
+    const clientX =
+      "touches" in e ? e.touches[0].clientX : e.clientX;
+    setHoverIdx(posToIdx(clientX));
+  }
+
+  // Crosshair data
+  const hovered = hoverIdx != null ? data[hoverIdx] : null;
+  const hoverX =
+    hoverIdx != null
+      ? PAD.left + (hoverIdx / (data.length - 1 || 1)) * innerW
+      : 0;
+  const hoverY =
+    hovered != null
+      ? PAD.top + innerH - ((hovered.close - min) / range) * innerH
+      : 0;
+
+  // Label position: flip to left side if near right edge
+  const labelAnchor = hoverX > W - 120 ? "end" : "start";
+  const labelX = labelAnchor === "end" ? hoverX - 8 : hoverX + 8;
+
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
+    <svg
+      ref={svgRef}
+      viewBox={`0 0 ${W} ${H}`}
+      className="w-full h-auto cursor-crosshair select-none"
+      onMouseMove={handleMove}
+      onMouseLeave={() => setHoverIdx(null)}
+      onTouchMove={handleMove}
+      onTouchEnd={() => setHoverIdx(null)}
+    >
       {/* Grid lines */}
       {yTicks.map((t, i) => (
         <g key={i}>
@@ -196,6 +223,53 @@ function MiniChart({
         strokeWidth={1.8}
         strokeLinejoin="round"
       />
+      {/* Crosshair */}
+      {hovered && (
+        <g>
+          {/* Vertical line */}
+          <line
+            x1={hoverX}
+            y1={PAD.top}
+            x2={hoverX}
+            y2={PAD.top + innerH}
+            stroke="currentColor"
+            strokeOpacity={0.25}
+            strokeWidth={0.8}
+            strokeDasharray="3 2"
+          />
+          {/* Dot on the line */}
+          <circle cx={hoverX} cy={hoverY} r={3.5} fill={color} />
+          <circle
+            cx={hoverX}
+            cy={hoverY}
+            r={5}
+            fill={color}
+            fillOpacity={0.2}
+          />
+          {/* Date + price label */}
+          <text
+            x={labelX}
+            y={PAD.top + 4}
+            textAnchor={labelAnchor}
+            fill="currentColor"
+            fillOpacity={0.9}
+            fontSize={10}
+            fontWeight={600}
+          >
+            ${hovered.close.toFixed(2)}
+          </text>
+          <text
+            x={labelX}
+            y={PAD.top + 16}
+            textAnchor={labelAnchor}
+            fill="currentColor"
+            fillOpacity={0.5}
+            fontSize={9}
+          >
+            {hovered.date}
+          </text>
+        </g>
+      )}
     </svg>
   );
 }
@@ -204,8 +278,6 @@ function MiniChart({
 
 function ExpandedPanel({ item }: { item: WatchlistItem }) {
   const [rangeKey, setRangeKey] = useState<RangeKey>("1Y");
-  const [sliderStart, setSliderStart] = useState(0);
-  const [sliderEnd, setSliderEnd] = useState(1);
 
   const from = rangeToFrom(rangeKey);
   const to = new Date().toISOString().slice(0, 10);
@@ -217,12 +289,6 @@ function ExpandedPanel({ item }: { item: WatchlistItem }) {
 
   const ranges: RangeKey[] = ["1M", "6M", "YTD", "1Y", "5Y"];
 
-  const handleRangeChange = useCallback((key: RangeKey) => {
-    setRangeKey(key);
-    setSliderStart(0);
-    setSliderEnd(1);
-  }, []);
-
   return (
     <div className="px-4 py-4 bg-accent/50 space-y-4">
       {/* Chart */}
@@ -231,7 +297,7 @@ function ExpandedPanel({ item }: { item: WatchlistItem }) {
           {ranges.map((r) => (
             <button
               key={r}
-              onClick={() => handleRangeChange(r)}
+              onClick={() => setRangeKey(r)}
               className={`px-2.5 py-0.5 text-[10px] font-medium rounded-full transition-colors ${
                 rangeKey === r
                   ? "bg-foreground text-background"
@@ -243,42 +309,7 @@ function ExpandedPanel({ item }: { item: WatchlistItem }) {
           ))}
         </div>
         {chartData ? (
-          <>
-            <MiniChart
-              data={chartData}
-              sliderStart={sliderStart}
-              sliderEnd={sliderEnd}
-            />
-            {/* Range slider */}
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-[9px] text-muted-foreground w-8">From</span>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.01}
-                value={sliderStart}
-                onChange={(e) => {
-                  const v = parseFloat(e.target.value);
-                  if (v < sliderEnd - 0.02) setSliderStart(v);
-                }}
-                className="flex-1 h-1 accent-foreground"
-              />
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.01}
-                value={sliderEnd}
-                onChange={(e) => {
-                  const v = parseFloat(e.target.value);
-                  if (v > sliderStart + 0.02) setSliderEnd(v);
-                }}
-                className="flex-1 h-1 accent-foreground"
-              />
-              <span className="text-[9px] text-muted-foreground w-4">To</span>
-            </div>
-          </>
+          <MiniChart data={chartData} />
         ) : (
           <div className="h-[180px] flex items-center justify-center">
             <Skeleton className="h-full w-full rounded" />
